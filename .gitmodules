@@ -1,0 +1,3 @@
+[submodule "securedrop-client"]
+	path = securedrop-client
+	url = git@github.com:freedomofpress/securedrop-client.git
