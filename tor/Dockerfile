@@ -1,9 +1,5 @@
 FROM debian:bookworm-slim
 
-# Required environment variables
-ENV HIDSERV_HOSTNAME="changeme"
-ENV HIDSERV_KEY="changeme"
-
 # Install updates
 RUN apt-get update && \
     apt-get upgrade -y && \
