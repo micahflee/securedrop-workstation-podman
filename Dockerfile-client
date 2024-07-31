@@ -1,0 +1,33 @@
+FROM debian:bookworm
+
+# Install updates and dependencies
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    build-essential curl git python3 python3-poetry pkg-config libssl-dev libgl1 gnupg gpgconf \
+    libqt5waylandclient5 libqt5waylandcompositor5 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# Install rust
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Copy source
+COPY ./securedrop-client /src/securedrop-client
+
+# Build proxy
+WORKDIR /src/securedrop-client/proxy
+RUN pwd && make build
+
+# Install poetry deps
+WORKDIR /src/securedrop-client/client
+RUN poetry install
+
+# Run
+ENV QT_QPA_PLATFORM=wayland
+WORKDIR /src/securedrop-client/client
+
+# TODO: run.sh sets up a bunch of dev stuff, but this should work for prod too
+# CMD ["poetry", "run", "python", "-m", "securedrop_client", "--sdc-home", "/sdc-home", "--no-proxy"]
+CMD ["poetry", "run", "./run.sh", "--sdc-home", "/sdc-home"]
