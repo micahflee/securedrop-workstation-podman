@@ -1,9 +1,12 @@
 #!/bin/bash
 
+chown -R debian-tor:debian-tor /var/lib/securedrop-tor/
+chmod 700 /var/lib/securedrop-tor/
+
 # Configure torrc
 cat <<EOF > /etc/tor/torrc
 DataDirectory /var/lib/tor
-SocksPort 9050
+SocksPort unix:/var/lib/securedrop-tor/socks.sock
 Log notice file /var/log/tor/log
 EOF
 

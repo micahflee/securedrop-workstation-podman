@@ -4,7 +4,7 @@ FROM debian:bookworm
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-    build-essential curl git python3 python3-poetry pkg-config libssl-dev libgl1 gnupg gpgconf \
+    build-essential curl git python3 python3-poetry pkg-config libssl-dev libgl1 gnupg gpgconf socat \
     libqt5waylandclient5 libqt5waylandcompositor5 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,9 +24,7 @@ WORKDIR /src/securedrop-client/client
 RUN poetry install
 
 # Run
-ENV QT_QPA_PLATFORM=wayland
-WORKDIR /src/securedrop-client/client
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# TODO: run.sh sets up a bunch of dev stuff, but this should work for prod too
-# CMD ["poetry", "run", "python", "-m", "securedrop_client", "--sdc-home", "/sdc-home", "--no-proxy"]
-CMD ["poetry", "run", "./run.sh", "--sdc-home", "/sdc-home"]
+ENTRYPOINT ["/entrypoint.sh"]

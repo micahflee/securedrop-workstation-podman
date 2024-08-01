@@ -6,20 +6,21 @@ import time
 
 def main():
     # Build containers
-    subprocess.run(["podman", "build", "-t", "securedrop/tor", "tor/"], check=True)
-    subprocess.run(["podman", "build", "-t", "securedrop/client", "-f", "./Dockerfile-client"], check=True)
+    subprocess.run(
+        ["podman", "build", "-t", "securedrop/tor", "components/tor/"], check=True
+    )
+    subprocess.run(
+        ["podman", "build", "-t", "securedrop/client", "components/client"],
+        check=True,
+    )
 
     # Make sure volume folders exist
     if not os.path.exists("volumes"):
         os.mkdir("volumes")
+    if not os.path.exists("volumes/securedrop-tor"):
+        os.mkdir("volumes/securedrop-tor")
     if not os.path.exists("volumes/securedrop-client"):
         os.mkdir("volumes/securedrop-client")
-
-    # Create the securedrop podman network
-    try:
-        subprocess.run(["podman", "network", "create", "securedrop"], check=True)
-    except subprocess.CalledProcessError:
-        pass
 
     # Load config
     with open("config.json") as f:
@@ -38,10 +39,15 @@ def main():
             "podman",
             "run",
             "--name=securedrop-tor",
-            "--network=securedrop",
             "--rm",
-            "-e", f"HIDSERV_HOSTNAME={config['hidserv']['hostname']}",
-            "-e", f"HIDSERV_KEY={config['hidserv']['key']}",
+            # Persistent data
+            "-v",
+            f"{os.getcwd()}/volumes/securedrop-tor:/var/lib/securedrop-tor",
+            # Environment variables
+            "-e",
+            f"HIDSERV_HOSTNAME={config['hidserv']['hostname']}",
+            "-e",
+            f"HIDSERV_KEY={config['hidserv']['key']}",
             "-d",
             "securedrop/tor",
         ],
@@ -61,23 +67,33 @@ def main():
             "podman",
             "run",
             "--name=securedrop-client",
-            "--network=securedrop",
             "--rm",
             "-d",
+            # No networking, we'll use tor unix socket instead
+            "--network=none",
             # Persistent data
-            "-v", f"{os.getcwd()}/volumes/securedrop-client:/sdc-home",
-            # Environment variables for securedrop-client
-            "-e", f"SD_PROXY_ORIGIN=http://{config['hidserv']['hostname']}",
-            # Tell the client it's running in podman
-            "-e", "SDW_PODMAN=1",
+            "-v",
+            f"{os.getcwd()}/volumes/securedrop-client:/var/lib/securedrop-client",
+            # Mount the tor unix socket
+            "-v",
+            f"{os.getcwd()}/volumes/securedrop-tor:/var/lib/securedrop-tor",
+            # Environment variables
+            "-e",
+            "SDW_PODMAN=1",
+            "-e",
+            f"SD_PROXY_ORIGIN=http://{config['hidserv']['hostname']}",
             # Use wayland
-            "-v", f"{os.environ.get('XDG_RUNTIME_DIR')}/{os.environ.get('WAYLAND_DISPLAY')}:/tmp/{os.environ.get('WAYLAND_DISPLAY')}",
-            "-e", "XDG_RUNTIME_DIR=/tmp",
-            "-e", f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY')}",
-            "securedrop/client"
+            "-v",
+            f"{os.environ.get('XDG_RUNTIME_DIR')}/{os.environ.get('WAYLAND_DISPLAY')}:/tmp/{os.environ.get('WAYLAND_DISPLAY')}",
+            "-e",
+            "XDG_RUNTIME_DIR=/tmp",
+            "-e",
+            f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY')}",
+            "securedrop/client",
         ],
         check=True,
     )
+
 
 """
 podman run --rm \
